@@ -1,0 +1,6 @@
+name := "abnf2bnf"
+version := "0.1"
+scalaVersion := "2.13.3"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test"
+libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.1.1"
