@@ -1,7 +1,6 @@
 package transformer
 
-import bnf.Bnf.{Alternatives, BnfRule, Cons}
-import bnf.{BnfAbs, BnfElementAbs, BnfName, BnfRules}
+import bnf._
 
 import scala.annotation.tailrec
 
@@ -65,7 +64,6 @@ object BnfSimplify {
 
   private def simplify(bnf: BnfAbs, bnfUsage: Set[String]): BnfAbs = bnf match {
     case BnfRules(rules) =>
-      println(bnfUsage)
       val simplifiedRules = bnfUsage.foldLeft(rules) {
         case (ruleToSimplify, rulesToReplace) =>
           (ruleToSimplify - rulesToReplace) map {

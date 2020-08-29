@@ -3,23 +3,14 @@ package bnf
 sealed trait BnfAbs
 sealed trait BnfElementAbs
 
-object Bnf {
+case class BnfRules(rules:BnfRule) extends BnfAbs {
 
-  type Cons = List[BnfElementAbs]
-  type Alternatives = List[Cons]
-  type BnfRule = Map[String,Alternatives]
-
-}
-
-
-case class BnfRules(rules:Bnf.BnfRule) extends BnfAbs {
-
-  private def printCons(alt:Bnf.Cons):String = alt match {
+  private def printCons(alt:Cons):String = alt match {
     case Nil => ""
     case x::xs => s"${x.toString()} ${printCons(xs)}"
   }
 
-  private def printAlts(alt:Bnf.Alternatives):String = alt match {
+  private def printAlts(alt:Alternatives):String = alt match {
     case Nil => ""
     case List(cons) => printCons(cons)
     case x::xs => s"${printCons(x)}| ${printAlts(xs)}"
