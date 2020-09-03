@@ -47,7 +47,10 @@ private[transformer] object BnfSimplify {
       val alternatives = findReplacement(ruleName, element, cons, rules) map {
         case (name, alts) =>
           val alternatives = alts map {
-            cons => cons.foldRight(id[Cons]) { case (elem, acc) => acc.andThen(elem :: _) }
+            cons => cons.foldRight(id[Cons]) {
+              case (Empty,acc) => acc
+              case (elem, acc) => acc.andThen(elem :: _)
+            }
           }
           (alternatives, Set(name))
       }

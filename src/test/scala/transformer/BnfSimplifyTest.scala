@@ -21,6 +21,21 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     BnfSimplify(transformed) should be(expected)
   }
 
+  test("empty rules is absorbed") {
+    /*
+    * t-1 := _0 t4
+    * _0  := ε | _1
+    * _1  := "A"
+    *
+    * t-1 := t4 | "A" t4
+    * */
+    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   "_0"  -> List(List(Empty),List(BnfName("_1"))),
+                                   "_1"  -> List(List(Terminal("A")))))
+    val expected = BnfRules(Map("t-1" -> List(List(BnfName("t4")),List(Terminal("A"),BnfName("t4")))))
+    BnfSimplify(transformed) should be(expected)
+  }
+
   test("translate nested replacement") {
     /*
     * t-1 := _0
