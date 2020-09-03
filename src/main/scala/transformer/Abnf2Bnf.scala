@@ -2,10 +2,9 @@ package transformer
 
 import cats.implicits._
 import abnf._
-import bnf.Bnf.{Alternatives, BnfRule, Cons}
 import bnf._
 
-object Abnf2Bnf {
+private[transformer] object Abnf2Bnf {
 
   type TranslateError = Either[String, (Int, BnfRule)]
 

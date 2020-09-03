@@ -1,7 +1,9 @@
 package bnf
 
+
 sealed trait BnfAbs
 sealed trait BnfElementAbs
+
 
 case class BnfRules(rules:BnfRule) extends BnfAbs {
 
@@ -53,7 +55,9 @@ case class Terminal(name:String) extends BnfElementAbs {
     case (acc,char) => acc ++ escapeChar(char)
   }
 
-
   override def toString: String = s""""${escape(name)}""""
 }
+
+
+
 

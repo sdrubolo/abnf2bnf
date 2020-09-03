@@ -4,4 +4,5 @@ package object bnf {
   type Alternatives = List[Cons]
   type BnfRule = Map[String,Alternatives]
 
+
 }

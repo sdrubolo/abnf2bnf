@@ -4,75 +4,92 @@ import bnf._
 
 import scala.annotation.tailrec
 
-object BnfSimplify {
+private[transformer] object BnfSimplify {
 
-  def apply(bnf: BnfAbs): BnfAbs = simplify(bnf, usage(bnf))
-
-  private def isSingle[A](alt: Seq[A]) = alt match {
-    case _ :: Nil => true
-    case _ => false
-  }
-
-  private def canReplace(replace: Alternatives, alternatives: Alternatives, cons: Cons): Boolean = {
-    val isSingleRule = isSingle(replace)
-    val isSingleWithMultiple = !isSingle(alternatives) && isSingleRule
-    isSingleRule || isSingleWithMultiple || (isSingle(cons) && isSingle(alternatives))
-  }
+  def apply(bnf: BnfAbs): BnfAbs = simplify(bnf)
 
   private def isInternalRule(name: String) = name.startsWith("_")
 
-  @tailrec
-  private def terminalRule(name: String, rules: BnfRule): Alternatives = rules get name match {
-    case None => List()
-    case Some(List(List(BnfName(ruleName)))) => terminalRule(ruleName, rules)
-    case Some(alts) => alts
-  }
-
-  private def usage(bnf: BnfAbs): Set[String] = bnf match {
-    case BnfRules(rules) => rules.foldLeft(Set.empty[String]) {
-      case (acc, (ruleName, alternatives)) =>
-        alternatives.foldLeft(acc) {
-          case (acc, cons) => cons.foldLeft(acc) {
-            case (acc, BnfName(name)) if name != ruleName && isInternalRule(name) && canReplace(terminalRule(name, rules), alternatives, cons) =>
-              acc + name
-            case (acc, _) => acc
-          }
+  private def rename(name: String, rename: String, alts: Alternatives): Alternatives = alts map {
+        cons => cons map {
+          case BnfName(n) if name == n => BnfName(rename)
+          case any => any
         }
+  }
+
+  private def id[A] : A => A = value => value
+
+  private def isRecursive(name:String,alts:Alternatives):Boolean = alts.exists {
+    cons => cons.exists {
+      case BnfName(n) if name == n => true
+      case _ => false
     }
   }
 
-  private def rename(name: String, rename: String, cons: Cons): Cons = cons map {
-    case BnfName(n) if name == n => BnfName(rename)
-    case any => any
+  private def isSingleRule(cons: Cons):Boolean = cons match {
+    case _::Nil => true
+    case _ => false
   }
 
-  private def merge(key: String, keySubts: String, alts: Alternatives, altsReplace: Alternatives): Alternatives = alts match {
-    case List(List(BnfName(name))) if name == keySubts => altsReplace map (rename(name, key, _))
-    case _ => altsReplace match {
-      case List(cons@_ :: _) => alts map {
-        concatenation =>
-          val replacedCons = concatenation.foldRight(List[BnfElementAbs]()) {
-            case (BnfName(name), acc) if name == keySubts => rename(name, key, cons) ++ acc
-            case (any, acc) => any :: acc
-          }
-          replacedCons
+  private def findReplacement(ruleName:String, bnfElement:BnfElementAbs, cons: Cons, rules: BnfRule):Option[(String,Alternatives)] = bnfElement match {
+    case BnfName(x) if isInternalRule(x) =>
+      rules get x match {
+        case Some(alts) if isSingleRule(cons) && isRecursive(x,alts) => Some((x,rename(x, ruleName, alts)))
+        case Some(alts) if !isRecursive(x,alts) => Some((x,alts))
+        case _ => None
       }
-
-      case _ => alts
-    }
+    case _ => None
   }
 
-  private def simplify(bnf: BnfAbs, bnfUsage: Set[String]): BnfAbs = bnf match {
+  private def merge(ruleName:String, cons:Cons,rules: BnfRule): (List[Cons=>Cons],Set[String])
+    = cons.foldRight(List(id[Cons]),Set[String]()) {
+    case (element, (rightVisited, replacedRules)) =>
+      val alternatives = findReplacement(ruleName, element, cons, rules) map {
+        case (name, alts) =>
+          val alternatives = alts map {
+            cons => cons.foldRight(id[Cons]) { case (elem, acc) => acc.andThen(elem :: _) }
+          }
+          (alternatives, Set(name))
+      }
+      val (leftVisited, replacedRule) = alternatives.getOrElse((List[Cons => Cons](element :: _), Set[String]()))
+      val newMap = for {left <- leftVisited
+                        right <- rightVisited
+                        } yield right.andThen(left)
+
+      (newMap, replacedRule | replacedRules)
+  }
+
+  private def mergeCons(ruleName:String,cons: Cons, rules: BnfRule): (Alternatives=>Alternatives,Set[String]) = {
+    val (options,replacedRules) = merge(ruleName, cons, rules)
+    val alts = options.foldRight(id[Alternatives]) { case (opt,acc) => acc.andThen(opt(List())::_)  }
+    (alts,replacedRules)
+  }
+
+  private def mergeAlternatives(ruleName:String, alts:Alternatives, rules: BnfRule): (Alternatives,Set[String])
+    = {
+    val (computedAlts, involvedRules) = alts.foldRight((id[Alternatives], Set[String]())) {
+      case (cons, (alts, replaced)) =>
+        val (newCons, replacedRuleName) = mergeCons(ruleName, cons, rules)
+        (alts.andThen(newCons), replaced | replacedRuleName)
+    }
+    (computedAlts(List()), involvedRules)
+  }
+
+  private def mergeInvolvedRules(name:String,x:Set[String],y:Set[String]):Set[String]
+  = if (isInternalRule(name) && x(name) && y.nonEmpty) x else x | y
+
+  @tailrec
+  private def simplify(bnf: BnfAbs): BnfAbs = bnf match {
     case BnfRules(rules) =>
-      val simplifiedRules = bnfUsage.foldLeft(rules) {
-        case (ruleToSimplify, rulesToReplace) =>
-          (ruleToSimplify - rulesToReplace) map {
-            case (key, alternatives) =>
-              val replaceAlts = ruleToSimplify get rulesToReplace
-              val newRuleSet = replaceAlts map { alts => merge(key, rulesToReplace, alternatives, alts) }
-              (key, newRuleSet.getOrElse(alternatives))
-          }
+
+      val (newRuleSet,replacedRules):(BnfRule,Set[String]) = rules.foldLeft((rules,Set[String]())) {
+        case ((bnf,remove), (head,body)) =>
+          val (newBody,replacedRules) = mergeAlternatives(head,body,bnf)
+          (bnf + (head -> newBody),mergeInvolvedRules(head,remove,replacedRules))
       }
-      BnfRules(simplifiedRules)
+      val newRules = replacedRules.foldLeft(newRuleSet) {
+        case (rules,key) => rules - key
+      }
+      if(replacedRules.isEmpty) BnfRules(newRuleSet) else simplify(BnfRules(newRules))
   }
 }

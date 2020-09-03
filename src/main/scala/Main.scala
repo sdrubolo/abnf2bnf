@@ -1,4 +1,4 @@
-import transformer.{Abnf2Bnf, BnfSimplify}
+import transformer.{AbnfTransformer}
 import abnf.AbnfParser
 import abnf.AbnfLex
 
@@ -16,11 +16,10 @@ object Main {
     if(args.length == 1) {
       val fileName = args(0)
       val reader = StreamReader( Source.fromFile(fileName,"UTF-8").reader() )
-      val bnf = (AbnfLex(reader) flatMap { tokens => AbnfParser(tokens) }) flatMap { abnf => Abnf2Bnf(abnf) }
-      bnf map (BnfSimplify(_)) match {
+      val bnf = (AbnfLex(reader) flatMap { tokens => AbnfParser(tokens) }) flatMap { abnf => AbnfTransformer(abnf) }
+      bnf match {
         case Left(e) => println(e)
-        case Right(e @ BnfRules(v)) =>
-          bnf map { case BnfRules(b) => println(b.keys.toSet.filterNot(v.keys.toSet)) }
+        case Right(e @ BnfRules(_)) =>
           val writer = new PrintWriter(new File(s"$fileName.bnf"))
           writer.write(e.toString())
           writer.close()
