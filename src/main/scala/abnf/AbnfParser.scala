@@ -57,9 +57,7 @@ object AbnfParser extends Parsers {
     def group    : Parser[ElementAbs] = (VCHAR("(") ~ (whiteSpace*)) ~> alternation <~ ((whiteSpace*) ~ VCHAR(")")) ^^ { elements => Group(elements) }
     def optional : Parser[ElementAbs] = (VCHAR("[") ~ (whiteSpace*)) ~> alternation <~ ((whiteSpace*) ~ VCHAR("]")) ^^ { elements => Opt(elements) }
     def prose    : Parser[ElementAbs] = accept("prose", { case PROSE(any) => ProseValue(any) })
-
     def assignment : Parser[AssignmentDef.DefinedAs] = accept("assignment", { case ASSIGNMENT(value) => value })
-    def space      : Parser[String]        = accept("space", { case WSP(value) => value })
     def digits     : Parser[String]        = (digit+) ^^ ( digit => digit.reduce (_+_) )
     def digit      : Parser[String]        = accept("digit", { case VCHAR(value) if """[0-9]""".r matches value => value })
     def new_line   : Parser[Elem]          = accept("new line", { case c @ CRLF() => c })
@@ -91,10 +89,12 @@ object AbnfParser extends Parsers {
       Value(start, rep)
     }
 
+    private def space      = accept("space", { case WSP(value) => value })
     private def defined_as = (whiteSpace*) ~> assignment <~ (whiteSpace*)
     private def whiteSpace = space | (c_nl ~ space)
-    private def c_nl  = comment | new_line
-    private def comment = COMMENT() ~ new_line
+    private def c_nl       = comment | new_line
+    private def comment    = COMMENT() ~ new_line
+
 
     def ruleNameDash : Parser[String] = { accept("dash", { case VCHAR("-") => "-" }) }
 

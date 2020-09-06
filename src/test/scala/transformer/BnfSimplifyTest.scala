@@ -158,5 +158,20 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
+  test("should not simplify recursive rule when it is involved in multiple rules cons") {
+    /*
+     * _329 ::= _330 | _330 "?" _333
+     * _330 ::= _331 | _331 _330
+     *
+     * _329 ::= _330 | _330 "?" _333
+     * _330 ::= _331 | _331 _330
+     * */
+    val transformed = BnfRules(Map(
+      "_329" -> List(List(BnfName("_330")),List(BnfName("_330"),Terminal("?"),BnfName("_333"))),
+      "_330" -> List(List(BnfName("_331")),List(BnfName("_331"),BnfName("_330"))),
+    ))
+
+    transformer.BnfSimplify(transformed) should be(transformed)
+  }
 
 }
