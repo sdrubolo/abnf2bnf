@@ -36,6 +36,26 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     BnfSimplify(transformed) should be(expected)
   }
 
+  test("double empty rules is absorbed") {
+    /*
+    * Response ::= Status-Line _102 CRLF _104
+    * _104 ::= ε | message-body
+    * _102 ::= ε | _103 _102
+    * _103 ::= message-header
+    *
+    * Response ::= Status-Line _102 CRLF | Status-Line _102 CRLF message-body
+    * _102 ::= ε | message-header _102
+    * */
+    val transformed = BnfRules(Map("Response" -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("_104"))),
+                                   "_104"     -> List(List(Empty),List(BnfName("message-body"))),
+                                   "_102"     -> List(List(Empty),List(BnfName("_103"),BnfName("_102"))),
+                                   "_103"     -> List(List(BnfName("message-header")))))
+    val expected = BnfRules(Map("Response" -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF")),
+                                                   List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("message-body"))),
+                                "_102"  -> List(List(Empty),List(BnfName("message-header"),BnfName("_102")))))
+    BnfSimplify(transformed) should be(expected)
+  }
+
   test("translate nested replacement") {
     /*
     * t-1 := _0

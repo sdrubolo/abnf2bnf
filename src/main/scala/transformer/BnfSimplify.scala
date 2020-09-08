@@ -49,7 +49,7 @@ private[transformer] object BnfSimplify {
     case _ => None
   }
 
-  private def join:BnfElementAbs=>Cons=>Cons = element => cons => cons match {
+  private def join:BnfElementAbs=>Cons=>Cons = element => {
     case Nil => List(element)
     case Empty::xs => element::xs
     case any => element match {
@@ -70,7 +70,7 @@ private[transformer] object BnfSimplify {
           }
           (alternatives, Set(name))
       }
-      val (leftVisited, replacedRule) = alternatives.getOrElse((List[Cons => Cons](element :: _), Set[String]()))
+      val (leftVisited, replacedRule) = alternatives.getOrElse((List[Cons => Cons](join(element)), Set[String]()))
       val newMap = for {left <- leftVisited
                         right <- rightVisited
                         } yield right.andThen(left)
