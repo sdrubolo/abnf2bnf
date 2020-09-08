@@ -21,7 +21,7 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     BnfSimplify(transformed) should be(expected)
   }
 
-  test("empty rules is absorbed") {
+  test("leftmost empty rules is absorbed") {
     /*
     * t-1 := _0 t4
     * _0  := ε | _1
@@ -36,7 +36,7 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     BnfSimplify(transformed) should be(expected)
   }
 
-  test("double empty rules is absorbed") {
+  test("rightmost empty rule is absorbed") {
     /*
     * Response ::= Status-Line _102 CRLF _104
     * _104 ::= ε | message-body
