@@ -1,7 +1,7 @@
 package transformer
 
 import abnf._
-import bnf.{Alternatives, BnfAbs, BnfName, BnfRules}
+import bnf.{Alternatives, BnfAbs, BnfName, BnfRules, BnfRule}
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -19,6 +19,30 @@ object AbnfTransformer {
     }
   }
 
+  private def internalRules(name:String,rules:BnfRule):Set[String] = rules get name match {
+    case None => Set[String]()
+    case Some(alts) =>
+      alts.foldLeft(Set[String]()) {
+      case (acc,cons) => cons.foldLeft(acc) {
+        case (acc,BnfName(a)) if isInternalRule(a) => {
+          val rightInternalRules = if(a != name) acc | internalRules(a,rules) else Set[String]()
+          (acc + a) | rightInternalRules
+        }
+        case (acc,_) => acc
+      }
+    }
+  }
+
+  private def unusedInternalRules(unusedCoreRules:Set[String],rules:BnfRule):Set[String]
+    = unusedCoreRules.foldLeft(Set[String]()) {
+      case (acc,coreRule) => acc | internalRules(coreRule,rules)
+    }
+
+  private def removeUnusedRules(unusedRules:Set[String],rules:BnfRule):BnfRule
+    = unusedRules.foldLeft(rules) {
+      case (acc,rule) => acc - rule
+    }
+
   @tailrec
   private def findUsedRules(rules:BnfAbs):BnfAbs = rules match {
     case  BnfRules(ruleSet) =>
@@ -33,9 +57,8 @@ object AbnfTransformer {
       val unusedRules = ruleSet.keySet &~ rightHandRules
       val unusedCoreRules = unusedRules & coreRules.keys
       if(unusedCoreRules.nonEmpty) {
-        val newRuleSet = unusedCoreRules.foldLeft(ruleSet) {
-          case (acc,rule) => acc - rule
-        }
+        val augmentedUnusedRules = unusedInternalRules(unusedCoreRules,ruleSet)
+        val newRuleSet = removeUnusedRules(unusedCoreRules|augmentedUnusedRules,ruleSet)
         findUsedRules(BnfRules(newRuleSet))
       }
       else {
@@ -49,7 +72,7 @@ object AbnfTransformer {
 
   def apply(abnf: AbnfAbs): Either[String, BnfAbs] = abnf match {
     case Rules(rules) =>
-      Abnf2Bnf(Rules(coreRules.abnfRules++rules)) map { bnf => BnfSimplify(bnf)} map findUsedRules
+      Abnf2Bnf(Rules(coreRules.abnfRules ++ rules)) map { bnf => BnfSimplify(bnf)} map findUsedRules
   }
 
 }

@@ -8,8 +8,6 @@ private[transformer] object BnfSimplify {
 
   def apply(bnf: BnfAbs): BnfAbs = simplify(bnf)
 
-  private def isInternalRule(name: String) = name.startsWith("_")
-
   private def rename(name: String, rename: String, alts: Alternatives): Alternatives = alts map {
         cons => cons map {
           case BnfName(n) if name == n => BnfName(rename)
