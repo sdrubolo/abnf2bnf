@@ -8,18 +8,18 @@ private[transformer] object BnfSimplify {
 
   def apply(bnf: BnfAbs): BnfAbs = simplify(bnf)
 
-  private def rename(name: String, rename: String, alts: Alternatives): Alternatives = alts map {
+  private def rename(name: BnfName, rename: BnfName, alts: Alternatives): Alternatives = alts map {
         cons => cons map {
-          case BnfName(n) if name == n => BnfName(rename)
+          case n if name == n => rename
           case any => any
         }
   }
 
   private def id[A] : A => A = value => value
 
-  private def isRecursive(name:String,alts:Alternatives):Boolean = alts.exists {
+  private def isRecursive(name:BnfName,alts:Alternatives):Boolean = alts.exists {
     cons => cons.exists {
-      case BnfName(n) if name == n => true
+      case n if name == n => true
       case _ => false
     }
   }
@@ -29,23 +29,24 @@ private[transformer] object BnfSimplify {
     case _ => false
   }
 
-  private def isSingleRuleInAlts(name:String,alternatives: Alternatives):Boolean = alternatives.filter {
+  private def isSingleRuleInAlts(name:BnfName,alternatives: Alternatives):Boolean = alternatives.filter {
     cons => cons.exists {
-      case BnfName(n) if name == n => true
+      case n if name == n => true
       case _ => false
     }
   }.forall(isSingleRule)
 
-  private def findReplacement(ruleName:String, bnfElement:BnfElementAbs, alternatives: Alternatives, rules: BnfRule):Option[(String,Alternatives)] = bnfElement match {
-    case BnfName(x) if isInternalRule(x) =>
-      rules get x match {
-        case Some(alts) if isSingleRuleInAlts(x,alternatives) && isRecursive(x,alts) =>
-          Some((x,rename(x, ruleName, alts)))
-        case Some(alts) if !isRecursive(x,alts) => Some((x,alts))
-        case _ => None
-      }
-    case _ => None
-  }
+  private def findReplacement(ruleName:BnfName, bnfElement:BnfElementAbs, alternatives: Alternatives, rules: BnfRule):Option[(BnfName,Alternatives)]
+    = bnfElement match {
+      case n @ BnfName(_) if isInternalRule(n) =>
+        rules get n match {
+          case Some(alts) if isSingleRuleInAlts(n,alternatives) && isRecursive(n,alts) =>
+            Some((n,rename(n, ruleName, alts)))
+          case Some(alts) if !isRecursive(n,alts) => Some((n,alts))
+          case _ => None
+        }
+      case _ => None
+    }
 
   private def join:BnfElementAbs=>Cons=>Cons = element => {
     case Nil => List(element)
@@ -56,8 +57,8 @@ private[transformer] object BnfSimplify {
     }
   }
 
-  private def merge(ruleName:String, cons:Cons, alts: Alternatives, rules: BnfRule): (List[Cons=>Cons],Set[String])
-    = cons.foldRight(List(id[Cons]),Set[String]()) {
+  private def merge(ruleName:BnfName, cons:Cons, alts: Alternatives, rules: BnfRule): (List[Cons=>Cons],Set[BnfName])
+    = cons.foldRight(List(id[Cons]),Set[BnfName]()) {
     case (element, (rightVisited, replacedRules)) =>
       val alternatives = findReplacement(ruleName, element, alts, rules) map {
         case (name, alts) =>
@@ -68,7 +69,7 @@ private[transformer] object BnfSimplify {
           }
           (alternatives, Set(name))
       }
-      val (leftVisited, replacedRule) = alternatives.getOrElse((List[Cons => Cons](join(element)), Set[String]()))
+      val (leftVisited, replacedRule) = alternatives.getOrElse((List[Cons => Cons](join(element)), Set[BnfName]()))
       val newMap = for {left <- leftVisited
                         right <- rightVisited
                         } yield right.andThen(left)
@@ -76,15 +77,15 @@ private[transformer] object BnfSimplify {
       (newMap, replacedRule | replacedRules)
   }
 
-  private def mergeCons(ruleName:String,cons: Cons, alternatives: Alternatives, rules: BnfRule): (Alternatives=>Alternatives,Set[String]) = {
+  private def mergeCons(ruleName:BnfName,cons: Cons, alternatives: Alternatives, rules: BnfRule): (Alternatives=>Alternatives,Set[BnfName]) = {
     val (options,replacedRules) = merge(ruleName, cons, alternatives, rules)
     val alts = options.foldRight(id[Alternatives]) { case (opt,acc) => acc.andThen(opt(List())::_)  }
     (alts,replacedRules)
   }
 
-  private def mergeAlternatives(ruleName:String, alternatives:Alternatives, rules: BnfRule): (Alternatives,Set[String])
+  private def mergeAlternatives(ruleName:BnfName, alternatives:Alternatives, rules: BnfRule): (Alternatives,Set[BnfName])
     = {
-    val (computedAlts, involvedRules) = alternatives.foldRight((id[Alternatives], Set[String]())) {
+    val (computedAlts, involvedRules) = alternatives.foldRight((id[Alternatives], Set[BnfName]())) {
       case (cons, (alts, replaced)) =>
         val (newCons, replacedRuleName) = mergeCons(ruleName, cons, alternatives, rules)
         (alts.andThen(newCons), replaced | replacedRuleName)
@@ -92,14 +93,14 @@ private[transformer] object BnfSimplify {
     (computedAlts(List()), involvedRules)
   }
 
-  private def mergeInvolvedRules(name:String,x:Set[String],y:Set[String]):Set[String]
+  private def mergeInvolvedRules(name:BnfName,x:Set[BnfName],y:Set[BnfName]):Set[BnfName]
   = if (isInternalRule(name) && x(name) && y.nonEmpty) x else x | y
 
   @tailrec
   private def simplify(bnf: BnfAbs): BnfAbs = bnf match {
     case BnfRules(rules) =>
 
-      val (newRuleSet,replacedRules):(BnfRule,Set[String]) = rules.foldLeft((rules,Set[String]())) {
+      val (newRuleSet,replacedRules):(BnfRule,Set[BnfName]) = rules.foldLeft((rules,Set[BnfName]())) {
         case ((bnf,remove), (head,body)) =>
           val (newBody,replacedRules) = mergeAlternatives(head,body,bnf)
           (bnf + (head -> newBody),mergeInvolvedRules(head,remove,replacedRules))

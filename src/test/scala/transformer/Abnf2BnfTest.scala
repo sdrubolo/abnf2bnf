@@ -17,18 +17,61 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Incremental,
                           List(List(ElementRep(None,Value(48,Some(Left(57)))))))))
-    val expected = Right(BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                      "_0"  -> List(List(Terminal("0")),
-                                                    List(Terminal("1")),
-                                                    List(Terminal("2")),
-                                                    List(Terminal("3")),
-                                                    List(Terminal("4")),
-                                                    List(Terminal("5")),
-                                                    List(Terminal("6")),
-                                                    List(Terminal("7")),
-                                                    List(Terminal("8")),
-                                                    List(Terminal("9"))))))
+    val expected = Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                      BnfName("_0")  -> List(List(Terminal("0")),
+                                                             List(Terminal("1")),
+                                                             List(Terminal("2")),
+                                                             List(Terminal("3")),
+                                                             List(Terminal("4")),
+                                                             List(Terminal("5")),
+                                                             List(Terminal("6")),
+                                                             List(Terminal("7")),
+                                                             List(Terminal("8")),
+                                                             List(Terminal("9"))))))
     Abnf2Bnf(abnf) should be(expected)
+  }
+
+  test("translate string with case insensitive options") {
+    /*
+    * t-1 = "te-"
+    *
+    * t-1 := _t _e "-"
+    * _t  := "t" | "T"
+    * _e  := "e" | "E"
+    * */
+    val abnf = Rules(List(Rule(Name("t-1"),
+                          AssignmentDef.Incremental,
+                          List(List(ElementRep(None, CharVal("te-")))))))
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_t"),BnfName("_e"), Terminal("-"))),
+                                                BnfName("_t") -> List(List(Terminal("t")),
+                                                                      List(Terminal("T"))),
+                                                BnfName("_e") -> List(List(Terminal("e")),
+                                                                      List(Terminal("E")))))))
+  }
+
+  test("translate string with case insensitive options in multiple rules") {
+    /*
+    * t-1 = "te-"
+    * t-2 = "te-"
+    *
+    * t-1 := _t _e "-"
+    * t-2 := _t _e "-"
+    * _t  := "t" | "T"
+    * _e  := "e" | "E"
+    * */
+    val abnf = Rules(List(Rule(Name("t-1"),
+                               AssignmentDef.Incremental,
+                               List(List(ElementRep(None, CharVal("te-"))))),
+                          Rule(Name("t-2"),
+                               AssignmentDef.Incremental,
+                               List(List(ElementRep(None, CharVal("te-"))))))
+    )
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_t"),BnfName("_e"), Terminal("-"))),
+                                                BnfName("t-2") -> List(List(BnfName("_t"),BnfName("_e"), Terminal("-"))),
+                                                BnfName("_t") -> List(List(Terminal("t")),
+                                                                      List(Terminal("T"))),
+                                                BnfName("_e") -> List(List(Terminal("e")),
+                                                                      List(Terminal("E")))))))
   }
 
   test("translate simple rule") {
@@ -40,7 +83,7 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Incremental,
                           List(List(ElementRep(None, Name("test")))))))
-    Abnf2Bnf(abnf) should be(Right(BnfRules(Map("t-1" -> List(List(BnfName("test")))))))
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("test")))))))
   }
 
   test("translate concatenation rule") {
@@ -52,7 +95,7 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Incremental,
                           List(List(ElementRep(None, Name("test")),ElementRep(None, Name("test")))))))
-    Abnf2Bnf(abnf) should be(Right(BnfRules(Map("t-1" -> List(List(BnfName("test"),BnfName("test")))))))
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("test"),BnfName("test")))))))
   }
 
   test("translate alternatives rule") {
@@ -64,7 +107,7 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Incremental,
                           List(List(ElementRep(None, Name("test"))),List(ElementRep(None, Name("test")))))))
-    Abnf2Bnf(abnf) should be(Right(BnfRules(Map("t-1" -> List(List(BnfName("test")),List(BnfName("test")))))))
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("test")),List(BnfName("test")))))))
   }
 
   test("translate digit repetition rule") {
@@ -77,8 +120,8 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Assignment,
                           List(List(ElementRep(Some(DigitRepeat(2)), Name("test")))))))
-    Abnf2Bnf(abnf) should be(Right(BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                                "_0"  -> List(List(BnfName("test"),BnfName("test")))))))
+    Abnf2Bnf(abnf) should be(Right(BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                                BnfName("_0")  -> List(List(BnfName("test"),BnfName("test")))))))
   }
 
   test("translate range with limits repetition rule") {
@@ -91,9 +134,9 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Assignment,
                           List(List(ElementRep(Some(RangeRepeat(Some(2),Some(3))), Name("test")))))))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(BnfName("test"),BnfName("test")),
-                                                 List(BnfName("test"),BnfName("test"),BnfName("test")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(BnfName("test"),BnfName("test")),
+                                                          List(BnfName("test"),BnfName("test"),BnfName("test")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -107,9 +150,9 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Assignment,
                           List(List(ElementRep(Some(RangeRepeat(Some(2),None)), Name("test")))))))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(BnfName("test"),BnfName("test")),
-                                                 List(BnfName("test"),BnfName("_0")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(BnfName("test"),BnfName("test")),
+                                                          List(BnfName("test"),BnfName("_0")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -123,9 +166,9 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Assignment,
                           List(List(ElementRep(Some(RangeRepeat(None,None)), Name("test")))))))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(Empty),
-                                                 List(BnfName("test"),BnfName("_0")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(Empty),
+                                                          List(BnfName("test"),BnfName("_0")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -139,11 +182,11 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val abnf = Rules(List(Rule(Name("t-1"),
                           AssignmentDef.Assignment,
                           List(List(ElementRep(Some(RangeRepeat(None,Some(3))), Name("test")))))))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(Empty),
-                                                 List(BnfName("test")),
-                                                 List(BnfName("test"),BnfName("test")),
-                                                 List(BnfName("test"),BnfName("test"),BnfName("test")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(Empty),
+                                                          List(BnfName("test")),
+                                                          List(BnfName("test"),BnfName("test")),
+                                                          List(BnfName("test"),BnfName("test"),BnfName("test")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -157,8 +200,8 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val firstRule = List(List(ElementRep(None,Name("t2")), ElementRep(None,Name("t3"))))
     val group = List(List(ElementRep(None,Group(firstRule)),ElementRep(None,Name("t4"))))
     val abnf = Rules(List(Rule(Name("t-1"), AssignmentDef.Assignment, group)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
-                                   "_0"  -> List(List(BnfName("t2"),BnfName("t3")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   BnfName("_0")  -> List(List(BnfName("t2"),BnfName("t3")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -176,10 +219,10 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val group = List(List(ElementRep(None,Group(List(firstRule,secondRule)))))
     val abnf = Rules(List(Rule(Name("t-1"),
                      AssignmentDef.Assignment, group)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(BnfName("_1"),BnfName("t3")),List(BnfName("t4"))),
-                                   "_1"  -> List(List(Empty),
-                                                 List(BnfName("t2"),BnfName("_1")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(BnfName("_1"),BnfName("t3")),List(BnfName("t4"))),
+                                   BnfName("_1")  -> List(List(Empty),
+                                                          List(BnfName("t2"),BnfName("_1")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -193,8 +236,8 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val firstRule = List(List(ElementRep(None,Name("t2")), ElementRep(None,Name("t3"))))
     val optional = List(List(ElementRep(None,Opt(firstRule)),ElementRep(None,Name("t4"))))
     val abnf = Rules(List(Rule(Name("t-1"), AssignmentDef.Assignment, optional)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
-                                   "_0"  -> List(List(Empty),List(BnfName("t2"),BnfName("t3")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   BnfName("_0")  -> List(List(Empty),List(BnfName("t2"),BnfName("t3")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -209,9 +252,9 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val firstRule = List(List(ElementRep(Some(RangeRepeat(None,None)),Name("t2"))))
     val opt = List(List(ElementRep(None,Opt(firstRule)),ElementRep(None,Name("t4"))))
     val abnf = Rules(List(Rule(Name("t-1"), AssignmentDef.Assignment, opt)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
-                                   "_0"  -> List(List(BnfName("_1"))),
-                                   "_1"  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   BnfName("_0")  -> List(List(BnfName("_1"))),
+                                   BnfName("_1")  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -228,10 +271,10 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val opt2 = List(List(ElementRep(None,Opt(firstRule))))
     val opt1 = List(List(ElementRep(None,Opt(opt2))))
     val abnf = Rules(List(Rule(Name("t-1"), AssignmentDef.Assignment, opt1)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                    "_0" -> List(List(Empty),List(BnfName("_1"))),
-                                    "_1" -> List(List(BnfName("_2"),BnfName("t4"))),
-                                    "_2" -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0") -> List(List(Empty),List(BnfName("_1"))),
+                                   BnfName("_1") -> List(List(BnfName("_2"),BnfName("t4"))),
+                                   BnfName("_2") -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 
@@ -246,9 +289,9 @@ class Abnf2BnfTest extends AnyFunSuite with Matchers {
     val firstRule = List(List(ElementRep(None,Name("t2")),ElementRep(None,Name("t4"))))
     val opt1 = List(List(ElementRep(Some(RangeRepeat(None,None)),Opt(firstRule))))
     val abnf = Rules(List(Rule(Name("t-1"), AssignmentDef.Assignment, opt1)))
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(Empty),List(BnfName("_1"),BnfName("_0"))),
-                                   "_1"  -> List(List(BnfName("t2"),BnfName("t4")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(Empty),List(BnfName("_1"),BnfName("_0"))),
+                                   BnfName("_1")  -> List(List(BnfName("t2"),BnfName("t4")))))
     Abnf2Bnf(abnf) should be(Right(transformed))
   }
 

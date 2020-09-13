@@ -6,51 +6,55 @@ import bnf._
 
 private[transformer] object Abnf2Bnf {
 
-  type TranslateError = Either[String, (Int, BnfRule)]
+  type TranslateError = Either[String, (Int, BnfRule, BnfRule)]
 
   def apply(abnf: AbnfAbs): Either[String, BnfAbs] = rules(abnf)
 
-  def rules(rules: AbnfAbs): Either[String, BnfAbs] = rules match {
+  private def addRules(x:BnfRule,y:BnfRule):BnfRule = x -- y.keySet ++ y
+
+  private def rules(rules: AbnfAbs): Either[String, BnfAbs] = rules match {
     case Rules(rules) =>
-      val empty: Either[String, (Int, BnfRule)] = Right(0, Map())
+      val empty: TranslateError = Right(0, Map(), Map())
       val ruleSet = rules.foldLeft(empty) {
         case (acc, element) => acc flatMap {
-          case (count, rules) => rule(count, element) map { case (c, e) => (c, rules.combine(e)) }
+          case (count, rules, caseInsensitive) =>
+            rule(count, element) map { case (c, e, cir) => (c, rules.combine(e), addRules(caseInsensitive,cir)) }
         }
       }
-      ruleSet map { case (_, rules) => BnfRules(rules) }
+      ruleSet map { case (_, rules, caseInsensitive) => BnfRules(rules.combine(caseInsensitive)) }
   }
 
-  def rule(counter: Int, rule: RuleAbs): TranslateError =
+  private def rule(counter: Int, rule: RuleAbs): TranslateError =
     rule match {
-      case Rule(Name(name), _, elements) => alternatives(counter, name, elements)
+      case Rule(Name(name), _, elements) => alternatives(counter, BnfName(name), elements)
     }
 
-  def alternatives(counter: Int, name: String, elements: List[List[ElementRep]]): TranslateError = {
-      val empty: Either[String, (Int, BnfRule)] = Right(counter, Map())
+  private def alternatives(counter: Int, name: BnfName, elements: List[List[ElementRep]]): TranslateError = {
+      val empty: TranslateError = Right(counter, Map(), Map())
       elements.foldLeft(empty) {
           case (acc, alternative) => acc flatMap {
-          case (c, rule) => concatenation(c, name, alternative) map { case (c, e) => (c, rule.combine(e)) }
+          case (c, rule, caseInsensitive) =>
+            concatenation(c, name, alternative) map { case (c, e, cir) => (c, rule.combine(e), addRules(caseInsensitive,cir)) }
         }
       }
   }
 
-  private def singleRule(name: String, rule: BnfRule): Cons = rule.getOrElse(name, List(List())).head
+  private def singleRule(name: BnfName, rule: BnfRule): Cons = rule.getOrElse(name, List(List())).head
 
-  def concatenation(counter: Int, name: String, elements: List[ElementRep]): TranslateError = {
-    val empty: Either[String, (Int, BnfRule)] = Right(counter, Map())
+  private def concatenation(counter: Int, name: BnfName, elements: List[ElementRep]): TranslateError = {
+    val empty: TranslateError = Right(counter, Map(), Map())
       elements.foldLeft(empty) {
         case (acc, element) => acc flatMap {
-          case (count, rule) => repetition(count, name, element) map {
-            case (c, e) => val repetition = singleRule(name, e)
+          case (count, rule, caseInsensitive) => repetition(count, name, element) map {
+            case (c, e, cir) => val repetition = singleRule(name, e)
               val cons = singleRule(name, rule)
-              (c, rule.combine(e - name) + (name -> List(cons.combine(repetition))))
+              (c, rule.combine(e - name) + (name -> List(cons.combine(repetition))), addRules(caseInsensitive,cir))
           }
         }
       }
   }
 
-  def repetition(count: Int, name: String, elm: ElementRep): TranslateError = elm match {
+  private def repetition(count: Int, name: BnfName, elm: ElementRep): TranslateError = elm match {
     case ElementRep(None, elementRule) => element(count, name, elementRule)
     case ElementRep(Some(rep), elementRule) => repeat(count, name, rep, elementRule)
   }
@@ -64,20 +68,20 @@ private[transformer] object Abnf2Bnf {
     }
   }
 
-  private def intToRule(ruleName: String, rule: Cons)(x: Int): Cons = x match {
+  private def intToRule(ruleName: BnfName, rule: Cons)(x: Int): Cons = x match {
     case 0 => List(Empty)
-    case -1 => rule ++ List(BnfName(ruleName))
+    case -1 => rule ++ List(ruleName)
     case x => List.fill(x)(rule).flatten
   }
 
-  private def newEntryRule(from: String, to: String): BnfRule = Map(from -> List(List(BnfName(to))))
+  private def newEntryRule(from: BnfName, to: BnfName): BnfRule = Map(from -> List(List(to)))
 
-  private def repeat(count: Int, name: String, rep: RepeatAbs, rule: ElementAbs): TranslateError = {
-    val newRuleName = s"_$count"
-    val nextRule = s"_${count + 1}"
+  private def repeat(count: Int, name: BnfName, rep: RepeatAbs, rule: ElementAbs): TranslateError = {
+    val newRuleName = BnfName(s"_$count")
+    val nextRule = BnfName(s"_${count + 1}")
     element(count + 1, newRuleName, rule) flatMap {
 
-      case (newCount, bnfRule) =>
+      case (newCount, bnfRule, caseInsensitiveRules) =>
         val newEntry = newEntryRule(name, newRuleName)
         val (min, max) = rep match {
           case DigitRepeat(value) => (value, value)
@@ -95,12 +99,12 @@ private[transformer] object Abnf2Bnf {
               _ => noEmptyRule(nextRule, remainingRules) map { alts => Map(nextRule->alts)}
             }
             val r = nestNoEmpty.getOrElse(remainingRules)
-            Right((newCount, r.combine(newEntry.combine(replicatedRule))))
+            Right((newCount, r.combine(newEntry.combine(replicatedRule)), caseInsensitiveRules))
         }
     }
   }
 
-  def element(count: Int, name: String, element: ElementAbs): TranslateError = element match {
+  private def element(count: Int, name: BnfName, element: ElementAbs): TranslateError = element match {
     case e: Value => numValue(count, name, e)
     case e: CharVal => charValue(count, name, e)
     case e: Name => ruleName(count, name, e)
@@ -109,42 +113,59 @@ private[transformer] object Abnf2Bnf {
     case _: ProseValue => Left("Prose value not supported yet")
   }
 
-  def group(count: Int, name: String, group: Group): TranslateError = group match {
-    case Group(elements) => val newRuleName = s"_$count"
+  private def group(count: Int, name: BnfName, group: Group): TranslateError = group match {
+    case Group(elements) =>
+      val newRuleName = BnfName(s"_$count")
       alternatives(count + 1, newRuleName, elements) map {
-        case (newCount, groupRule) =>
+        case (newCount, groupRule, caseInsensitiveRules) =>
           val newEntry = newEntryRule(name, newRuleName)
-          (newCount, groupRule.combine(newEntry))
+          (newCount, groupRule.combine(newEntry), caseInsensitiveRules)
       }
   }
 
-  private def noEmptyRule(ruleName: String, optional: BnfRule): Option[Alternatives] = optional get ruleName match {
+  private def noEmptyRule(ruleName: BnfName, optional: BnfRule): Option[Alternatives] = optional get ruleName match {
     case Some(List(Empty) :: xs) => Some(xs)
     case _ => None
   }
 
-  def options(count: Int, name: String, opts: Opt): TranslateError = opts match {
-    case Opt(elements) => val newRuleName = s"_$count"
+  private def options(count: Int, name: BnfName, opts: Opt): TranslateError = opts match {
+    case Opt(elements) => val newRuleName = BnfName(s"_$count")
       val optCount = count + 1
       alternatives(optCount, newRuleName, elements) map {
-        case (newCount, optionalRule) =>
+        case (newCount, optionalRule, caseInsensitiveRules) =>
           val emptyRuleSet : BnfRule = Map()
-          val emptyRule : BnfRule = (noEmptyRule(s"_$optCount", optionalRule) map {
+          val emptyRule : BnfRule = (noEmptyRule(BnfName(s"_$optCount"), optionalRule) map {
               _ => emptyRuleSet
             }).getOrElse(Map(newRuleName -> List(List(Empty))))
-          (newCount, emptyRule.combine(optionalRule).combine(newEntryRule(name, newRuleName)))
+          (newCount, emptyRule.combine(optionalRule).combine(newEntryRule(name, newRuleName)), caseInsensitiveRules)
       }
   }
 
-  def ruleName(count: Int, name: String, rule: Name): TranslateError = rule match {
-    case Name(ruleName) => Right((count, Map(name -> List(List(BnfName(ruleName))))))
+  private def ruleName(count: Int, name: BnfName, rule: Name): TranslateError = rule match {
+    case Name(ruleName) => Right((count, Map(name -> List(List(BnfName(ruleName)))), Map()))
   }
 
-  def charValue(count: Int, name: String, value: CharVal): TranslateError = value match {
-    case CharVal(value) => Right((count, Map(name -> List(List(Terminal(value))))))
+  private def charValue(count: Int, name: BnfName, value: CharVal): TranslateError = value match {
+    case CharVal(value) =>
+      val empty : BnfRule = Map()
+      val (alt,newRules,caseInsensitive) = value.foldRight((List[BnfElementAbs](),empty,empty)) {
+        case (char,(acc,newRules,caseInsensitive)) => if (isCharCaseInsensitive(char)) {
+          val name = BnfName(s"_${Character.toLowerCase(char)}")
+          val newCaseInsensitive = Map(name -> List(List(Terminal(s"${Character.toLowerCase(char)}")),List(Terminal(s"${Character.toUpperCase(char)}"))))
+          (name::acc,newRules, addRules(caseInsensitive,newCaseInsensitive))
+        }
+        else {
+          (Terminal(s"${Character.toString(char)}")::acc, newRules, caseInsensitive)
+        }
+      }
+      Right((count, newRules + (name -> List(alt)), caseInsensitive))
   }
 
-  def numValue(count: Int, name: String, value: Value): TranslateError = value match {
+  private def isCharCaseInsensitive(char: Char):Boolean = char.toInt match {
+    case x => (x >= 65 && x <= 90) || (x >= 97 && x <= 122)
+  }
+
+  private def numValue(count: Int, name: BnfName, value: Value): TranslateError = value match {
     case Value(value, repeat) =>
       val initial = Terminal(charToString(value))
       repeat match {
@@ -156,19 +177,19 @@ private[transformer] object Abnf2Bnf {
 
   private def charToString(value:Int):String = Character.toString(value)
 
-  private def simpleNumValue(count:Int, name:String, initial:BnfElementAbs, value: Seq[Int]): TranslateError
+  private def simpleNumValue(count:Int, name:BnfName, initial:BnfElementAbs, value: Seq[Int]): TranslateError
   = { val cons = initial :: (value.toList map (v => Terminal(charToString(v))))
-      Right((count,Map(name -> List(cons))))
+      Right((count,Map(name -> List(cons)), Map()))
   }
 
-  private def rangeNumValue(count:Int, name:String, initial:BnfElementAbs, start: Int, end: Int): TranslateError
+  private def rangeNumValue(count:Int, name:BnfName, initial:BnfElementAbs, start: Int, end: Int): TranslateError
   = if (start > end) {
     Left("Cannot construct empty range")
   } else {
     val terminals = for (i <- start + 1 to end) yield List(Terminal(charToString(i)))
-    val newRuleName = s"_$count"
+    val newRuleName = BnfName(s"_$count")
     val alts = Map(newRuleName -> (List(initial) :: terminals.toList))
-    Right((count+1,alts.combine(Map(name -> List(List(BnfName(newRuleName)))))))
+    Right((count+1,alts.combine(Map(name -> List(List(newRuleName)))), Map()))
   }
 
 }

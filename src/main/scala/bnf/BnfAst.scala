@@ -30,7 +30,7 @@ object Empty extends BnfElementAbs {
 }
 
 case class BnfName(name:String) extends BnfElementAbs {
-  override def toString: String = name
+  override def toString: String = s"<$name>"
 }
 
 case class Terminal(name:String) extends BnfElementAbs {

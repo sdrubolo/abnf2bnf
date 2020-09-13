@@ -14,10 +14,10 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     *
     * t-1 := "A" t3 t4 t4
     * */
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
-                                   "_0"  -> List(List(BnfName("_1"),BnfName("t3"),BnfName("t4"))),
-                                   "_1"  -> List(List(Terminal("A")))))
-    val expected = BnfRules(Map("t-1" -> List(List(Terminal("A"),BnfName("t3"),BnfName("t4"),BnfName("t4")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   BnfName("_0")  -> List(List(BnfName("_1"),BnfName("t3"),BnfName("t4"))),
+                                   BnfName("_1")  -> List(List(Terminal("A")))))
+    val expected = BnfRules(Map(BnfName("t-1") -> List(List(Terminal("A"),BnfName("t3"),BnfName("t4"),BnfName("t4")))))
     BnfSimplify(transformed) should be(expected)
   }
 
@@ -29,10 +29,10 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     *
     * t-1 := t4 | "A" t4
     * */
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"),BnfName("t4"))),
-                                   "_0"  -> List(List(Empty),List(BnfName("_1"))),
-                                   "_1"  -> List(List(Terminal("A")))))
-    val expected = BnfRules(Map("t-1" -> List(List(BnfName("t4")),List(Terminal("A"),BnfName("t4")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"),BnfName("t4"))),
+                                   BnfName("_0")  -> List(List(Empty),List(BnfName("_1"))),
+                                   BnfName("_1")  -> List(List(Terminal("A")))))
+    val expected = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("t4")),List(Terminal("A"),BnfName("t4")))))
     BnfSimplify(transformed) should be(expected)
   }
 
@@ -46,13 +46,13 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     * Response ::= Status-Line _102 CRLF | Status-Line _102 CRLF message-body
     * _102 ::= ε | message-header _102
     * */
-    val transformed = BnfRules(Map("Response" -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("_104"))),
-                                   "_104"     -> List(List(Empty),List(BnfName("message-body"))),
-                                   "_102"     -> List(List(Empty),List(BnfName("_103"),BnfName("_102"))),
-                                   "_103"     -> List(List(BnfName("message-header")))))
-    val expected = BnfRules(Map("Response" -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF")),
-                                                   List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("message-body"))),
-                                "_102"  -> List(List(Empty),List(BnfName("message-header"),BnfName("_102")))))
+    val transformed = BnfRules(Map(BnfName("Response") -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("_104"))),
+                                   BnfName("_104")     -> List(List(Empty),List(BnfName("message-body"))),
+                                   BnfName("_102")     -> List(List(Empty),List(BnfName("_103"),BnfName("_102"))),
+                                   BnfName("_103")     -> List(List(BnfName("message-header")))))
+    val expected = BnfRules(Map(BnfName("Response") -> List(List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF")),
+                                                            List(BnfName("Status-Line"),BnfName("_102"),BnfName("CRLF"),BnfName("message-body"))),
+                                BnfName("_102")     -> List(List(Empty),List(BnfName("message-header"),BnfName("_102")))))
     BnfSimplify(transformed) should be(expected)
   }
 
@@ -66,12 +66,12 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     * t-1 := _ε | _2 t4
     * _2  :=  ε | t2 _2
     * */
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                   "_0"  -> List(List(Empty),List(BnfName("_1"))),
-                                   "_1"  -> List(List(BnfName("_2"),BnfName("t4"))),
-                                   "_2"  -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
-    val expected = BnfRules(Map("t-1" -> List(List(Empty),List(BnfName("_2"),BnfName("t4"))),
-                                "_2"  -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(Empty),List(BnfName("_1"))),
+                                   BnfName("_1")  -> List(List(BnfName("_2"),BnfName("t4"))),
+                                   BnfName("_2")  -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
+    val expected = BnfRules(Map(BnfName("t-1") -> List(List(Empty),List(BnfName("_2"),BnfName("t4"))),
+                                BnfName("_2")  -> List(List(Empty),List(BnfName("t2"),BnfName("_2")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -84,11 +84,11 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     * t-1 := ε | _1 t4
     * _1  := ε | t2 _1
     * */
-    val transformed = BnfRules(Map("t-1" -> List(List(Empty),List(BnfName("_0"))),
-                                   "_0"  -> List(List(BnfName("_1"),BnfName("t4"))),
-                                   "_1"  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
-    val expected = BnfRules(Map("t-1" -> List(List(Empty),List(BnfName("_1"),BnfName("t4"))),
-                                "_1"  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(Empty),List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(BnfName("_1"),BnfName("t4"))),
+                                   BnfName("_1")  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
+    val expected = BnfRules(Map(BnfName("t-1") -> List(List(Empty),List(BnfName("_1"),BnfName("t4"))),
+                                BnfName("_1")  -> List(List(Empty),List(BnfName("t2"),BnfName("_1")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -100,10 +100,10 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     *
     * t-1 := ε | t2 t4 t-1
     * */
-    val transformed = BnfRules(Map("t-1" -> List(List(BnfName("_0"))),
-                                    "_0" -> List(List(Empty),List(BnfName("_1"),BnfName("_0"))),
-                                    "_1" -> List(List(BnfName("t2"),BnfName("t4")))))
-    val expected = BnfRules(Map("t-1" -> List(List(Empty),List(BnfName("t2"),BnfName("t4"),BnfName("t-1")))))
+    val transformed = BnfRules(Map(BnfName("t-1") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")  -> List(List(Empty),List(BnfName("_1"),BnfName("_0"))),
+                                   BnfName("_1")  -> List(List(BnfName("t2"),BnfName("t4")))))
+    val expected = BnfRules(Map(BnfName("t-1") -> List(List(Empty),List(BnfName("t2"),BnfName("t4"),BnfName("t-1")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -116,11 +116,11 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
     *
     * _2  := ε | "-" "A" "B" "C" _3
     * */
-    val transformed = BnfRules(Map("_4" -> List(List(BnfName("_0"))),
-                                   "_0" -> List(List(Terminal("A"),Terminal("B"),Terminal("C"))),
-                                   "_1" -> List(List(Terminal("-"),BnfName("_4"))),
-                                   "_2" -> List(List(Empty),List(BnfName("_1"),BnfName("_3")))))
-    val expected = BnfRules(Map("_2" -> List(List(Empty),List(Terminal("-"),Terminal("A"),Terminal("B"),Terminal("C"),BnfName("_3")))))
+    val transformed = BnfRules(Map(BnfName("_4") -> List(List(BnfName("_0"))),
+                                   BnfName("_0") -> List(List(Terminal("A"),Terminal("B"),Terminal("C"))),
+                                   BnfName("_1") -> List(List(Terminal("-"),BnfName("_4"))),
+                                   BnfName("_2") -> List(List(Empty),List(BnfName("_1"),BnfName("_3")))))
+    val expected = BnfRules(Map(BnfName("_2") -> List(List(Empty),List(Terminal("-"),Terminal("A"),Terminal("B"),Terminal("C"),BnfName("_3")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -134,12 +134,12 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
      * subtag := "A" | "B" | "C"
      * _2  := ε | "-" subtag _3
      * */
-    val transformed = BnfRules(Map("subtag" -> List(List(BnfName("_0"))),
-                                   "_0"     -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C"))),
-                                   "_1"     -> List(List(Terminal("-"),BnfName("subtag"))),
-                                   "_2"     -> List(List(Empty),List(BnfName("_1"),BnfName("_3")))))
-    val expected = BnfRules(Map("subtag" -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C"))),
-                                "_2"     -> List(List(Empty),List(Terminal("-"),BnfName("subtag"),BnfName("_3")))))
+    val transformed = BnfRules(Map(BnfName("subtag") -> List(List(BnfName("_0"))),
+                                   BnfName("_0")     -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C"))),
+                                   BnfName("_1")     -> List(List(Terminal("-"),BnfName("subtag"))),
+                                   BnfName("_2")     -> List(List(Empty),List(BnfName("_1"),BnfName("_3")))))
+    val expected = BnfRules(Map(BnfName("subtag") -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C"))),
+                                BnfName("_2")     -> List(List(Empty),List(Terminal("-"),BnfName("subtag"),BnfName("_3")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -150,14 +150,14 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
      *
      * _19 := "A" | "B" | "C" | "A" _19 | "B" _19 | "C" _19
      * */
-    val transformed = BnfRules(Map("_19" -> List(List(BnfName("_20")),List(BnfName("_20"),BnfName("_19"))),
-                                   "_20" -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C")))))
-    val expected = BnfRules(Map("_19" -> List(List(Terminal("A")),
-                                              List(Terminal("B")),
-                                              List(Terminal("C")),
-                                              List(Terminal("A"),BnfName("_19")),
-                                              List(Terminal("B"),BnfName("_19")),
-                                              List(Terminal("C"),BnfName("_19")))))
+    val transformed = BnfRules(Map(BnfName("_19") -> List(List(BnfName("_20")),List(BnfName("_20"),BnfName("_19"))),
+                                   BnfName("_20") -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C")))))
+    val expected = BnfRules(Map(BnfName("_19") -> List(List(Terminal("A")),
+                                                       List(Terminal("B")),
+                                                       List(Terminal("C")),
+                                                       List(Terminal("A"),BnfName("_19")),
+                                                       List(Terminal("B"),BnfName("_19")),
+                                                       List(Terminal("C"),BnfName("_19")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -168,13 +168,13 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
      *
      * _0 := _1 | "A" | "B" | "C" | _3
      * */
-    val transformed = BnfRules(Map("_0" -> List(List(BnfName("_1")),List(BnfName("_2")),List(BnfName("_3"))),
-                                   "_2" -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C")))))
-    val expected = BnfRules(Map("_0" -> List(List(BnfName("_1")),
-                                             List(Terminal("A")),
-                                             List(Terminal("B")),
-                                             List(Terminal("C")),
-                                             List(BnfName("_3")))))
+    val transformed = BnfRules(Map(BnfName("_0") -> List(List(BnfName("_1")),List(BnfName("_2")),List(BnfName("_3"))),
+                                   BnfName("_2") -> List(List(Terminal("A")),List(Terminal("B")),List(Terminal("C")))))
+    val expected = BnfRules(Map(BnfName("_0") -> List(List(BnfName("_1")),
+                                                      List(Terminal("A")),
+                                                      List(Terminal("B")),
+                                                      List(Terminal("C")),
+                                                      List(BnfName("_3")))))
     transformer.BnfSimplify(transformed) should be(expected)
   }
 
@@ -187,8 +187,8 @@ class BnfSimplifyTest extends AnyFunSuite with Matchers {
      * _330 ::= _331 | _331 _330
      * */
     val transformed = BnfRules(Map(
-      "_329" -> List(List(BnfName("_330")),List(BnfName("_330"),Terminal("?"),BnfName("_333"))),
-      "_330" -> List(List(BnfName("_331")),List(BnfName("_331"),BnfName("_330"))),
+        BnfName("_329") -> List(List(BnfName("_330")),List(BnfName("_330"),Terminal("?"),BnfName("_333"))),
+        BnfName("_330") -> List(List(BnfName("_331")),List(BnfName("_331"),BnfName("_330"))),
     ))
 
     transformer.BnfSimplify(transformed) should be(transformed)
