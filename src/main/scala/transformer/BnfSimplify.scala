@@ -29,7 +29,8 @@ private[transformer] object BnfSimplify {
     case _ => false
   }
 
-  private def isSingleRuleInAlts(name:BnfName,alternatives: Alternatives):Boolean = alternatives.filter {
+  private def isSingleRuleInAlts(name:BnfName,alternatives: Alternatives):Boolean
+  = alternatives.filter {
     cons => cons.exists {
       case n if name == n => true
       case _ => false
@@ -77,7 +78,8 @@ private[transformer] object BnfSimplify {
       (newMap, replacedRule | replacedRules)
   }
 
-  private def mergeCons(ruleName:BnfName,cons: Cons, alternatives: Alternatives, rules: BnfRule): (Alternatives=>Alternatives,Set[BnfName]) = {
+  private def mergeCons(ruleName:BnfName,cons: Cons, alternatives: Alternatives, rules: BnfRule): (Alternatives=>Alternatives,Set[BnfName])
+  = {
     val (options,replacedRules) = merge(ruleName, cons, alternatives, rules)
     val alts = options.foldRight(id[Alternatives]) { case (opt,acc) => acc.andThen(opt(List())::_)  }
     (alts,replacedRules)

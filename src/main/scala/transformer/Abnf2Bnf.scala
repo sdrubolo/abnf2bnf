@@ -145,12 +145,23 @@ private[transformer] object Abnf2Bnf {
     case Name(ruleName) => Right((count, Map(name -> List(List(BnfName(ruleName)))), Map()))
   }
 
+  private def joinTerminals(cons:Cons):Cons
+    = cons.foldRight(List[BnfElementAbs]()) {
+      case (element,acc) => element match {
+        case Terminal(value) => acc match {
+          case Terminal(v)::xs =>Terminal(s"$value$v")::xs
+          case any => element::any
+        }
+        case any => any::acc
+      }
+    }
+
   private def charValue(count: Int, name: BnfName, value: CharVal): TranslateError = value match {
     case CharVal(value) =>
       val empty : BnfRule = Map()
       val (alt,newRules,caseInsensitive) = value.foldRight((List[BnfElementAbs](),empty,empty)) {
         case (char,(acc,newRules,caseInsensitive)) => if (isCharCaseInsensitive(char)) {
-          val name = BnfName(s"_${Character.toLowerCase(char)}")
+          val name = BnfName(s"_${Character.toUpperCase(char)}_")
           val newCaseInsensitive = Map(name -> List(List(Terminal(s"${Character.toLowerCase(char)}")),List(Terminal(s"${Character.toUpperCase(char)}"))))
           (name::acc,newRules, addRules(caseInsensitive,newCaseInsensitive))
         }
@@ -158,7 +169,7 @@ private[transformer] object Abnf2Bnf {
           (Terminal(s"${Character.toString(char)}")::acc, newRules, caseInsensitive)
         }
       }
-      Right((count, newRules + (name -> List(alt)), caseInsensitive))
+      Right((count, newRules + (name -> (List(alt) map joinTerminals)), caseInsensitive))
   }
 
   private def isCharCaseInsensitive(char: Char):Boolean = char.toInt match {
@@ -178,18 +189,19 @@ private[transformer] object Abnf2Bnf {
   private def charToString(value:Int):String = Character.toString(value)
 
   private def simpleNumValue(count:Int, name:BnfName, initial:BnfElementAbs, value: Seq[Int]): TranslateError
-  = { val cons = initial :: (value.toList map (v => Terminal(charToString(v))))
-      Right((count,Map(name -> List(cons)), Map()))
-  }
+    = {
+      val cons = initial :: (value.toList map (v => Terminal(charToString(v))))
+      Right((count,Map(name -> (List(cons) map joinTerminals)), Map()))
+    }
 
   private def rangeNumValue(count:Int, name:BnfName, initial:BnfElementAbs, start: Int, end: Int): TranslateError
-  = if (start > end) {
-    Left("Cannot construct empty range")
-  } else {
-    val terminals = for (i <- start + 1 to end) yield List(Terminal(charToString(i)))
-    val newRuleName = BnfName(s"_$count")
-    val alts = Map(newRuleName -> (List(initial) :: terminals.toList))
-    Right((count+1,alts.combine(Map(name -> List(List(newRuleName)))), Map()))
-  }
+    = if (start > end) {
+      Left("Cannot construct empty range")
+    } else {
+      val terminals = for (i <- start + 1 to end) yield List(Terminal(charToString(i)))
+      val newRuleName = BnfName(s"_$count")
+      val alts = (List(initial) :: terminals.toList) map joinTerminals
+      Right((count+1,Map(newRuleName -> alts).combine(Map(name -> List(List(newRuleName)))), Map()))
+    }
 
 }

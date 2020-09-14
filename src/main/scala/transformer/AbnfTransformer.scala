@@ -64,7 +64,7 @@ object AbnfTransformer {
       }
       else {
         (rightHandRules &~ ruleSet.keySet &~ coreKeys).foreach {
-          rule => System.err.println(s"[warning] : Rule $rule is used but never defined")
+          rule => System.err.println(s"[${Console.YELLOW + "warning" + Console.WHITE}] : Rule $rule is used but never defined")
         }
         val rootRules = ruleSet.keySet &~ rightHandRules
         BnfRules(ruleSet.combine(buildStart(rootRules)))
