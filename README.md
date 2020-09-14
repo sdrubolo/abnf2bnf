@@ -1,4 +1,4 @@
-# abnf2bnf
+# ABNF to BNF - abnf2bnf
 
 Tool to transform [abnf](https://tools.ietf.org/html/rfc5234]) to its corresponding bnf counterpart
 
