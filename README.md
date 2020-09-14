@@ -1,6 +1,6 @@
 # abnf2bnf
 
-Tool to transform [abns](https://tools.ietf.org/html/rfc5234]) to its corresponding bnf counterpart
+Tool to transform [abnf](https://tools.ietf.org/html/rfc5234]) to its corresponding bnf counterpart
 
 ```
 path        = path-abempty    ; begins with "/" or is empty
