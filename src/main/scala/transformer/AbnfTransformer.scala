@@ -47,9 +47,9 @@ object AbnfTransformer {
   private def findUsedRules(rules:BnfAbs):BnfAbs = rules match {
     case  BnfRules(ruleSet) =>
       val rightHandRules = ruleSet.foldLeft(Set[BnfName]()) {
-        case (acc,(_,foundRules)) =>foundRules.foldLeft(acc) {
+        case (acc,(key,foundRules)) =>foundRules.foldLeft(acc) {
           case (acc,cons) => cons.foldLeft(acc) {
-            case (acc,name @ BnfName(_)) => acc + name
+            case (acc,name @ BnfName(_)) if key != name => acc + name
             case (acc,_) => acc
           }
         }
